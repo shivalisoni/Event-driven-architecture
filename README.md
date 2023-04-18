@@ -55,5 +55,43 @@ Setup :
           
        7) In SQS, the Orders queue will now have 3 messages, as it does not have the filter and the Orders-EU queue only shows 1 message delivered. This is because                only Message 3 had the matching message attribute key and value (location = eu-west) to satisfy the subscription filter.
 
+       
+        Error Handling : Client side error handling by using DLQ:
+        
+        1) In SNS, from the list of topics, choose the Orders topic and copy the ARN.
+        2) In SQS, create a nw queue named OrdersTopicDLQ.
+        3) From queue details page, navigate to Access policy tab.
+        4) Click Edit button and on the details page, append below policy statement to already existing one with correct ARN of Order SNS topic and OrdersTopicDLQ ARN.
+
+               {
+                 "Sid": "topic-subscription-sns",
+                 "Effect": "Allow",
+                 "Principal": {
+                   "AWS": "*"
+                 },
+                 "Action": "SQS:SendMessage",
+                 "Resource": "OrdersTopicDLQ_ARN",
+                 "Condition": {
+                   "ArnLike": {
+                     "aws:SourceArn": "SNS_ARN"
+                   }
+                 }
+                }
+                
+           5) From the cloudformation template, a lambda function called DodgyFunction should have been created . In lambda, select that function, in the Lambda                     function Designer, select Add trigger.
+           6) Enter SNS in the Lambda function Trigger filter and select the SNS trigger.
+           7) Select Orders from the SNS topic list and add.
+           8) Select the SNS tab in the Event Generator.
+           9) The Orders topic is pre-selected from the list of Topics.Choose Publish to publish the message to the Orders SNS topic.
+           10) In lambda, select the DodgyFunction, choose the Monitoring tab and note that the Lambda function was invoked successfully one time.
+           11) In SNS, choose the Orders topic, and select the DodgyFunction from the list of Subscriptions and edit.
+           12) Click on the Redrive policy (dead-letter queue) toggle button, select the OrdersTopicDLQ ARN in the Dead-letter queue field, and choose Save                            changes.
+           13) Now, go to lambda  from the console and delete the DodgyFunction lamda function.
+           14) Select the SNS tab in the Event Generator. Choose Publish to publish the message to the Orders SNS topic.
+           
+            The Orders queue shows 2 messages delivered, because the Orders subscription has no dead-letter queue and received both messages published from the Event               Generator.
+
+            The OrdersTopicDLQ queue shows 1 message delivered, because the DodgyFunction subscription has a dead-letter queue and received the failed message delivery             after the Lambda function was deleted.
+
 
 
